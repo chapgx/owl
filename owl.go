@@ -14,6 +14,7 @@ type Result struct {
 	Error error
 }
 
+// TODO: implement logic to move paths to different queues
 var (
 	high_priority_queue []string
 	standard_queue      []string
