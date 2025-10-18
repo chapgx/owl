@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/chapgx/owl"
-	_ "github.com/chapgx/owl/cmd/owl/cmd"
+	_ "github.com/chapgx/owl/cmd"
 	"github.com/racg0092/rhombifer"
 	"github.com/racg0092/rhombifer/pkg/builtin"
 	"github.com/racg0092/rhombifer/pkg/models"
