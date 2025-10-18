@@ -3,7 +3,6 @@ package owl
 import (
 	"errors"
 	"os"
-	"syscall"
 	"time"
 )
 
@@ -35,10 +34,7 @@ func takesnap(path string) (SnapShot, error) {
 	snap.Size = info.Size()
 	snap.ModTime = info.ModTime()
 
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		snap.INO = stat.Ino
-		snap.DEV = stat.Dev
-	}
+	fillSysInfo(&snap, info.Sys())
 
 	return snap, nil
 }
