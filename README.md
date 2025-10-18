@@ -67,3 +67,12 @@ All subscribers return the same structure that contains a possible error or a sn
 {Path:tests/planner.txt Exists:true Size:19 ModTime:2025-10-17 16:09:52.689764726 -0400 EDT INO:4797254 mapid: DEV:50}
 
 ```
+
+
+## CLI Installation
+
+To install the CLI run this command in your terminal.
+
+```
+$ go install github.com/cahpgx/owl/cmd/owl@latest
+```
