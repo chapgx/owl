@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/chapgx/owl"
-	_ "github.com/chapgx/owl/cmd"
+	"github.com/chapgx/owl/pkg/owl"
 	"github.com/racg0092/rhombifer"
 	"github.com/racg0092/rhombifer/pkg/builtin"
 	"github.com/racg0092/rhombifer/pkg/models"
@@ -44,7 +42,7 @@ func rootrun(args ...string) error {
 	path := src.Values[0]
 	//TODO: need to do som evalidations for security
 
-	sub := owl.SubscribeToOnModified()
+	sub := owl.Subscribe()
 
 	go owl.WatchWithMinInterval(path)
 
