@@ -13,3 +13,7 @@ build-amd:
 	GOOS=linux GOARCH=amd64 go build -o ./bin/owl_amd64_linux -ldflags="-s -w" ./cmd/owl/ && \
 	GOOS=darwin GOARCH=amd64 go build -o ./bin/owl_amd64_darwin -ldflags="-s -w" ./cmd/owl/ && \
 	GOOS=windows GOARCH=amd64 go build -o ./bin/owl_amd64_windows.exe -ldflags="-s -w" ./cmd/owl/
+
+
+build:
+	make build-arm && make build-amd

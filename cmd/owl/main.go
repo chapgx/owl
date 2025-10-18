@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/chapgx/owl/pkg/owl"
+	"github.com/chapgx/owl"
 	"github.com/racg0092/rhombifer"
 	"github.com/racg0092/rhombifer/pkg/builtin"
 	"github.com/racg0092/rhombifer/pkg/models"
