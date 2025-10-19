@@ -2,6 +2,7 @@ package owl
 
 import "sync"
 
+// State holds the previous state snap shot
 type State struct {
 	lock  sync.Mutex
 	store map[string]SnapShot

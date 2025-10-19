@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// SnapShot is a snap shot of the file meta data
 type SnapShot struct {
 	Path    string
 	Exists  bool
@@ -16,8 +17,12 @@ type SnapShot struct {
 	DEV     uint64
 }
 
-// Error implemented to meet the error interface definition
-// func (s SnapShot) Error() string { return "" }
+// ReadSnap is a snap shot of the contents of the file
+type ReadSnap struct {
+	Path    string
+	ModTime time.Time
+	Content []byte
+}
 
 // takesnap takes a snap shot of the file state
 func takesnap(path string) (SnapShot, error) {

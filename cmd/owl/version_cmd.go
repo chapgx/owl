@@ -6,6 +6,7 @@ import (
 	"github.com/racg0092/rhombifer"
 )
 
+// Version of CLI tool
 var VersionCmd = &rhombifer.Command{
 	Name:      "version",
 	ShortDesc: "application version",

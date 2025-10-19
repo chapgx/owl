@@ -42,17 +42,23 @@ func rootrun(args ...string) error {
 	path := src.Values[0]
 	//TODO: need to do som evalidations for security
 
-	sub := owl.Subscribe()
+	sub := owl.SubscribeOnModified(32 << 0)
 
 	go owl.WatchWithMinInterval(path)
 
-	for r := range sub {
-		if r.Error != nil {
-			fmt.Println(r.Error)
-			continue
+	for r := range sub.Listen() {
+
+		switch d := r.(type) {
+		case error:
+			fmt.Printf("Error: %s\n\n", d)
+		case owl.ReadSnap:
+			fmt.Printf("Content: %s\n\n", string(d.Content))
+		case owl.SnapShot:
+			fmt.Printf("Meta Data: %+v\n\n", d)
+		default:
+			fmt.Println("file update")
 		}
 
-		fmt.Printf("%+v\n", r.Snap)
 	}
 
 	return nil

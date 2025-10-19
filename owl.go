@@ -9,10 +9,14 @@ import (
 	"time"
 )
 
-type Result struct {
-	Snap  SnapShot
-	Error error
-}
+const (
+	// Subscriber will recieve file content
+	R_READ = 1 << 0
+	// Subscriber will recieve file meta data
+	R_META = 1 << 1
+	// Subscriber will get notify something happend no data send
+	R_SIGNAL = 1 << 2
+)
 
 // TODO: implement logic to move paths to different queues
 var (
@@ -21,19 +25,22 @@ var (
 )
 
 var (
-	subscribers           []chan Result
-	subscribersOnModified []chan Result
+	subscribers           []Subscriber
+	subscribersOnModified []Subscriber
 )
 
 var state_storage *State
 
 var ticker *time.Ticker
 
+// This is floor timing for folling file state
 const MinInterval = time.Millisecond * 500
 
 var (
-	stop   = make(chan os.Signal, 1)
-	output = make(chan Result, 1)
+	// critical error channerl that kills process
+	stop = make(chan os.Signal, 1)
+	// all snap shots are sen to this channel
+	output = make(chan any, 1)
 )
 
 // WatchWithMinInterval starts the watcher with minimum interval allowed
@@ -92,62 +99,154 @@ func recorddir(path string) {
 	}
 }
 
+// processQueues starts processing the [standard_queue] and [high_priority_queue] queue
 func processQueues() {
 	go processQueue(high_priority_queue)
 	go processQueue(standard_queue)
 }
 
+// processQueue process queue of paths to files
 func processQueue(queue []string) {
 	for _, p := range queue {
 		snap, e := takesnap(p)
 		if e != nil {
-			output <- Result{Error: e}
+			output <- e
 			continue
 		}
-		output <- Result{Snap: snap}
+		output <- snap
 	}
 }
 
-func Subscribe() chan Result {
-	sub := make(chan Result, 1)
+// Subscribe returns a subscriber to the watcher, flag specifies what type of data you want in the channel. Meta data,
+// file contents or just a signal. Example of suage below
+//
+//	sub := Subscribe(R_READ)
+//	go Watch("path/to/fil/or/dir")
+//	for rslt := range sub {
+//		swicth v := rslt.(ReadSnap)
+//		fmt.Println(v.Content)
+//	}
+func Subscribe(flag int) Subscriber {
+	allowed := R_META | R_SIGNAL | R_READ
+	if flag&^allowed != 0 {
+		panic(fmt.Sprintf("flag %d is not allowd", flag))
+	}
+
+	sub := Subscriber{channel: make(chan any, 1), flag: flag}
 	subscribers = append(subscribers, sub)
 	return sub
 }
 
-func SubscribeToOnModified() chan Result {
-	sub := make(chan Result, 1)
+// SubscribeOnModified returns a subscriber to the watcher, flag specifies what type of data you want in the channel. Meta data,
+// file contents or just a signal. The diffrence from [Subscribe] is that it will only perform the action if the file has been
+// modified.
+//
+//	sub := SubscribeOnModified(R_READ)
+//	go Watch("path/to/fil/or/dir")
+//	for rslt := range sub {
+//		swicth v := rslt.(ReadSnap)
+//		fmt.Println(v.Content)
+//	}
+func SubscribeOnModified(flag int) Subscriber {
+	allowed := R_META | R_SIGNAL | R_READ
+	if flag&^allowed != 0 {
+		panic(fmt.Sprintf("flag %d is not allowd", flag))
+	}
+	sub := Subscriber{channel: make(chan any, 1), flag: flag}
 	subscribersOnModified = append(subscribersOnModified, sub)
 	return sub
 }
 
+// signalSubscribers sends a signal to all subscribers
 func signalSubscribers() {
 	for r := range output {
-		go signal_on_any_subs(r)
+		go signal_subs(r)
 		go signal_on_change_subs(r)
 	}
 }
 
-func signal_on_any_subs(r Result) {
+// signal_subs processes standard subscribers
+func signal_subs(r any) {
 	for _, sub := range subscribers {
-		sub <- r
+		if e, ok := r.(error); ok {
+			sub.channel <- e
+			continue
+		}
+
+		if R_SIGNAL&sub.flag != 0 {
+			sub.channel <- uint(1)
+		}
+
+		if R_META&sub.flag != 0 {
+			sub.channel <- r
+		}
+
+		if R_READ&sub.flag != 0 {
+			snap, ok := r.(SnapShot)
+			if !ok {
+				sub.channel <- fmt.Errorf("expected a SnapShot type got something else")
+				continue
+			}
+
+			b, e := os.ReadFile(snap.Path)
+			if e != nil {
+				sub.channel <- e
+				continue
+			}
+			sub.channel <- ReadSnap{Path: snap.Path, ModTime: snap.ModTime, Content: b}
+		}
+
 	}
 }
 
-func signal_on_change_subs(r Result) {
+// signal_on_change_subs process subscribers to on modifird only
+func signal_on_change_subs(r any) {
 	for _, sub := range subscribersOnModified {
-		if r.Error != nil {
+		if e, ok := r.(error); ok {
+			sub.channel <- e
 			continue
 		}
 
-		prev := state_storage.get(r.Snap.Path)
+		snap, ok := r.(SnapShot)
+		if !ok {
+			sub.channel <- fmt.Errorf("expected SnapShot got something else")
+			continue
+		}
+
+		prev := state_storage.get(snap.Path)
 		if prev == nil {
-			state_storage.set(r.Snap)
+			state_storage.set(snap)
 			continue
 		}
 
-		if prev.ModTime.Before(r.Snap.ModTime) {
-			state_storage.set(r.Snap)
-			sub <- r
+		if !prev.ModTime.Before(snap.ModTime) {
+			continue
 		}
+
+		state_storage.set(snap)
+
+		if R_SIGNAL&sub.flag != 0 {
+			sub.channel <- uint(1)
+		}
+
+		if R_META&sub.flag != 0 {
+			sub.channel <- snap
+		}
+
+		if R_READ&sub.flag != 0 {
+			snap, ok := r.(SnapShot)
+			if !ok {
+				sub.channel <- fmt.Errorf("expected a SnapShot type got something else")
+				continue
+			}
+
+			b, e := os.ReadFile(snap.Path)
+			if e != nil {
+				sub.channel <- e
+				continue
+			}
+			sub.channel <- ReadSnap{Path: snap.Path, ModTime: snap.ModTime, Content: b}
+		}
+
 	}
 }
