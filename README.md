@@ -17,8 +17,8 @@ import "github.com/chapgx/owl"
 
 
 func main() {
-  // create a subscriber
-  sub := owl.Subscribe()
+  // create a subscriber that will receive the files content
+  sub := owl.Subscribe(owl.R_READ)
 
   // this sets the path and the interval 
   //note: there is a minimal interval allowed anything lower will panic
@@ -26,10 +26,12 @@ func main() {
 
 
   for result := range sub {
-    if result.Error != nil {
-      continue
+    case d := result.(type) {
+      case error:
+        panic(d)
+      case owl.ReadSnap:
+        fmt.Println(string(d.Content))
     }
-    fmt.Println(resutl.Snap)
   }
 }
 
@@ -43,8 +45,8 @@ import "github.com/chapgx/owl"
 
 
 func main() {
-  // create a subscriber that listens only for modifications in any asset
-  sub := owl.SubscribeToOnModified()
+  // create a subscriber that listens only for modifications in any asset and returns meta data
+  sub := owl.SubscribeOnModified(owl.R_META)
 
   // this sets the path and the interval 
   //note: there is a minimal interval allowed anything lower will panic
@@ -52,19 +54,14 @@ func main() {
 
 
   for result := range sub {
-    if result.Error != nil {
-      continue
+    switch d := result.(type) {
+    case error:
+      panic(d)
+    case owl.SnapShot:
+      fmt.Printf("%t\n", d.ModTime)
     }
-    fmt.Println(resutl.Snap)
   }
 }
-
-```
-
-All subscribers return the same structure that contains a possible error or a snap of the stats of the file. Example below
-
-```sh 
-{Path:tests/planner.txt Exists:true Size:19 ModTime:2025-10-17 16:09:52.689764726 -0400 EDT INO:4797254 mapid: DEV:50}
 
 ```
 
